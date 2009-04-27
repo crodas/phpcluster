@@ -5,6 +5,8 @@
  *
  *  This abstract class provides an enviroment to 
  *  implement any text clustering algorithm. 
+ *
+ *  @abstract
  */
 abstract class Cluster_Base 
 {
@@ -15,19 +17,29 @@ abstract class Cluster_Base
     private $_wordcount = array();
     private $_maxfeaturesfreq = 100;
 
-    final public function addPeer($id, $raw_text)
+    /**
+     *  This function add an element and its ID.
+     *
+     *  @param string $id       Object id
+     *  @param string $raw_text Objects content.
+     *
+     *  @return bool True if success
+     */
+    final public function addElement($id, $raw_text)
     {
-        $text = $this->filterPeer($raw_text);
+        $text = $this->filterElement($raw_text);
         if (!is_string($text)) {
             return false;
         }
         $features = $this->getFeatures($text);
-        if (is_array($features)) { 
+        if (is_array($features) && count($features) > 1) { 
+            /* saving raw text for future reuse */
             $this->text[$id] = $raw_text;
+
             $data   = & $this->data[$id];
             $index  = & $this->index;
             $wcount = & $this->_wordcount; 
-            $isize  = count($index);
+            $isize  = & $this->word_count;
             foreach ($features as $feature => $count) {
                 if (!isset($index[$feature])) {
                     $index[$feature]  = $isize++;
@@ -35,15 +47,13 @@ abstract class Cluster_Base
                 }
                 $data[$index[$feature]] = $count;
                 $wcount[$feature]++;
-
             }
-            $this->word_count = count($index)/2;
             return true;
         }
         return false;
     }
 
-    protected function filterPeer($text)
+    protected function filterElement($text)
     {
         return strtolower($text);
     }
@@ -63,7 +73,7 @@ abstract class Cluster_Base
     }
 
 
-    final private function pearson_pow($number, $exp=2)
+    final private function _pearson_pow($number, $exp=2)
     {
         return pow($number, $exp);
     }
@@ -71,8 +81,12 @@ abstract class Cluster_Base
     protected function distance_init(&$node)
     {
         $features  = & $node->features; 
+        if (!is_array($features)) {
+            var_dump($node);
+            die();
+        }
         $node->sum = array_sum($features);
-        $seq       = array_sum(array_map(array(&$this,"pearson_pow"),$features));
+        $seq       = array_sum(array_map(array(&$this,"_pearson_pow"),$features));
         $node->den = $seq - pow($node->sum,2) / $this->word_count; 
     }
 
@@ -84,6 +98,7 @@ abstract class Cluster_Base
         if (!$node2 instanceof stdclass) {
             throw new exception("error");
         }
+
         $v1 = & $node1->features;
         $v2 = & $node2->features;
 

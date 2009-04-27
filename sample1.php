@@ -3,10 +3,11 @@
 require "phpcluster/k-means.php";
 
 $c = new Kmeans;
-$c->setCentroids(200);
+$c->setCentroids(1000);
 $c->setThreshold(50);
 
-foreach (glob("data/*") as $file) {
+echo "Loading entries\n";
+foreach (glob("data-abc/*") as $file) {
     $rss = unserialize(gzuncompress(file_get_contents($file)));
     if (!isset($rss['link']) && isset($rss['guid'])) {
         $rss['link'] = $rss['guid'];
@@ -14,17 +15,22 @@ foreach (glob("data/*") as $file) {
     if (!isset($rss['title']) || !isset($rss['link']) || !isset($rss['description'])) {
         continue;
     }
-    if (strncmp("http://www.perfil.com/",$rss['link'],22)==0) {
+
+    if (trim($rss['title'])=="") {
         continue;
     }
 
-    if (strpos($rss['link'],'.py') === false) {
-        continue;
-    }
+    //if (strpos($rss['link'],'.py') === false) {
+        //continue;
+    //}
+    //echo "\tAdding {$rss['title']}\n";
     //$description = strip_tags(utf8_decode($rss['description']));
-    $c->addPeer(trim($rss['link']), utf8_decode($rss['title']));
+    $id = substr(trim($rss['link']),9);
+    $id = substr($id,0,strlen($id) - 5);
+    $link = "http://www.abc.com.py/imprimir.php?pid=$id";
+    $c->addElement($link, $rss['title']);
 }
-
+echo "Organizing\n";
 $clusters = $c->doCluster();
 foreach ($clusters as $id => $links) {
     echo "    * Cluster $id\n";

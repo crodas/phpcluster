@@ -17,7 +17,7 @@ class BiCluster extends Cluster_Base
         $cache = array();
         while ($toProcess >= 1) {
             $lowestpairs = array(0, 1);
-            $closest     = -1 ;//$this->distance($nodes[0], $nodes[1]);
+            $closest     = -1;
 
             for ($i=0; $i < $node_count; $i++) {
                 fwrite(STDERR,"$i\n");
