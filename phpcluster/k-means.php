@@ -212,7 +212,7 @@ class Kmeans extends Cluster_base
 
                 /* add the new centroid value and prepare */
                 $centroid[$i]->features = $avg;
-                $this->distance_init($centroid[$i]);
+                $this->distanceInit($centroid[$i]);
             }
             /* }}} */
 
