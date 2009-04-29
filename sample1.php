@@ -1,5 +1,6 @@
 #!/usr/bin/php 
 <?php
+// read the README
 
 require "phpcluster/k-means.php";
 
