@@ -1,4 +1,15 @@
 <?php
+/**
+ *  Base Clustering
+ *
+ *  PHP Version 5
+ *
+ *  @category Text
+ *  @package  PHPClustering
+ *  @author   César Rodas <crodas@member.fsf.org>
+ *  @license  http://www.php.net/license/3_01.txt PHP License 3.01
+ *  @link     http://cesar.la/cluster
+ */
 
 /**
  *  Cluster base
@@ -6,17 +17,22 @@
  *  This abstract class provides an enviroment to 
  *  implement any text clustering algorithm. 
  *
- *  @abstract
+ *  @category Text
+ *  @package  PHPClustering
+ *  @author   César Rodas <crodas@member.fsf.org>
+ *  @license  http://www.php.net/license/3_01.txt PHP License 3.01
+ *  @link     http://cesar.la/cluster
  */
-abstract class Cluster_Base 
+abstract class Cluster_Base
 {
-    protected $data  = array();
-    protected $text  = array();
-    protected $index = array();
-    protected $word_count = 0;
-    private $_wordcount = array();
+    protected $data           = array();
+    protected $text           = array();
+    protected $index          = array();
+    protected $word_count     = 0;
+    private $_wordcount       = array();
     private $_maxfeaturesfreq = 100;
 
+    // addElement {{{
     /**
      *  This function add an element and its ID.
      *
@@ -52,16 +68,43 @@ abstract class Cluster_Base
         }
         return false;
     }
+    // }}} 
 
+    // filterElement {{{ 
+    /**
+     *  filterElement
+     *
+     *  This function is a filter that is applied to every
+     *  element. This can be overriden in order to implement
+     *  your own filter.
+     *
+     *  @param string $text Element value.
+     *
+     *  @return string 
+     */
     protected function filterElement($text)
     {
         return strtolower($text);
     }
+    // }}}
 
+    // getFeatures {{{
+    /** 
+     *  getFeatures
+     *
+     *  This function extracts all the features from 
+     *  a given element, it must return an array with
+     *  the feature as they key and the count of repetition
+     *  as its value.
+     *
+     *  @param string $text Element's content.
+     *
+     *  @return array 
+     */
     protected function getFeatures($text)
     {
         $words = array();
-        foreach(preg_split("/[^a-zñáéíóúíóúü]/i",$text) as $word) {
+        foreach (preg_split("/[^a-zñáéíóúíóúü']/i", $text) as $word) {
             if (strlen($word) > 2) {
                 if (!isset($words[$word])) {
                     $words[$word] = 0;
@@ -71,36 +114,71 @@ abstract class Cluster_Base
         }
         return $words;
     }
+    // }}}
 
-
-    final private function _pearson_pow($number, $exp=2)
+    // _pearsonPow {{{
+    /**
+     *  Auxiliar function, Pearson Pow
+     *
+     *  @param int $number Number to pow
+     *
+     *  @return int
+     */
+    final private function _pearsonPow($number)
     {
-        return pow($number, $exp);
+        return pow($number, 2);
     }
+    // }}} 
 
-    protected function distance_init(&$node)
+    // distanceInit {{{
+    /**
+     *  Distance init. (Pearson distance)
+     *
+     *  This function initializes values needed for distance.
+     *
+     *  Initialization means calculate values that are unchanged
+     *  for every node, such information could be stored as properties
+     *  
+     *  @param object &$element Element to initialize
+     *
+     *  @return void
+     */
+    protected function distanceInit(&$element)
     {
-        $features  = & $node->features; 
-        if (!is_array($features)) {
-            var_dump($node);
-            die();
-        }
-        $node->sum = array_sum($features);
-        $seq       = array_sum(array_map(array(&$this,"_pearson_pow"),$features));
-        $node->den = $seq - pow($node->sum,2) / $this->word_count; 
+        $features     = & $element->features; 
+        $element->sum = array_sum($features);
+
+        $seq = array_sum(array_map(array(&$this, "_pearsonpow"), $features));
+
+        $element->den = $seq - pow($element->sum, 2) / $this->word_count; 
     }
+    // }}}
 
-    protected function distance(&$node1, &$node2)
+    // distance {{{
+    /** 
+     *  Distance (Pearson distance)
+     *
+     *  This function is the main function, this calculate
+     *  the distance (similarity) between two elements. By
+     *  default it cames with the pearson distance, but this
+     *  can be overriden.
+     *
+     *  @param object &$element1 Element 
+     *  @param object &$element2 Element 
+     *
+     *  @return int from 0 to 1. 0 means match perfectly
+     */
+    protected function distance(&$element1, &$element2)
     {
-        if (!$node1 instanceof stdclass) {
+        if (!$element1 instanceof stdclass) {
             throw new exception("error");
         }
-        if (!$node2 instanceof stdclass) {
+        if (!$element2 instanceof stdclass) {
             throw new exception("error");
         }
 
-        $v1 = & $node1->features;
-        $v2 = & $node2->features;
+        $v1 = & $element1->features;
+        $v2 = & $element2->features;
 
         if (count($v1) > count($v2)) {
             $min = & $v2;
@@ -110,9 +188,9 @@ abstract class Cluster_Base
             $max = & $v2;
         }
 
-        $sum1       = $node1->sum;
-        $sum2       = $node2->sum;
-        $word_count = $this->word_count;
+        $sum1       = & $element1->sum;
+        $sum2       = & $element2->sum;
+        $word_count = & $this->word_count;
 
         $pSum = 0;
         foreach ($min as $id => $count) {
@@ -122,22 +200,48 @@ abstract class Cluster_Base
             $pSum += $count * $max[$id]; 
         }
         $num = $pSum - ($sum1 * $sum2 / $word_count);
-        $den = sqrt($node1->den * $node2->den);
+        $den = sqrt($element1->den * $element2->den);
         if ($den == 0) {
             return 0;
         }
         return 1-($num/$den);
     }
+    // }}}
 
-
-    final function setFeaturesFreqThreshold($max=100) {
+    // setFeaturesFreqThreshold  {{{
+    /**
+     *  Set Maxiumn features frequency, this is useful
+     *  to delete too common features, in the case of 
+     *  English texts (the, theses, etc).
+     *
+     *  @param int $max Threshold (100 ... 0)
+     *
+     *  @return bool
+     *  
+     *  @experimental
+     *  
+     */
+    final function setFeaturesFreqThreshold($max=100)
+    {
         if ($max > 100 or $max < 1) {
             return false;
         }
         $this->_maxfeaturesfreq = $max/100;
         return true;
     }
+    // }}}
 
+    // doCluster {{{
+    /**
+     *  do Cluster
+     *
+     *  This function prepare all the features, and call to 
+     *  distanceInit(), then it call to the mainCluster() function.
+     *
+     *  @param int $iteration Maximum iteration.
+     *
+     *  @return array 
+     */
     final function doCluster($iteration=10)
     {
         $nodes    = array();
@@ -156,7 +260,7 @@ abstract class Cluster_Base
                     break;
                 }
                 $todel[] = $word;
-                echo "Deleting common word $word\n";
+                $this->doLog("Deleting common word $word");
             }
 
             foreach ($todel as $word) {
@@ -177,14 +281,46 @@ abstract class Cluster_Base
             $anode->left     = 0;
             $anode->right    = 0;
             $anode->distance = 0;
-            $this->distance_init($anode);
+            $this->distanceInit($anode);
             $nodes[] = $anode;
         }
 
-        return $this->_doCluster($iteration,$nodes);
+        return $this->mainCluster($iteration, $nodes);
     }
+    // }}}
 
-    abstract protected function _doCluster($iteration=10, &$data);
+    // doLog {{{
+    /**
+     *  Do Log.
+     *
+     *  @param string $string String to log.
+     *
+     *  @return void
+     */
+    protected function doLog($string)
+    {
+        $date = date("Y-m-d H:i:s");
+        fwrite(STDERR, "{$date}: {$string}\n");
+    }
+    // }}}
+
+    /**
+     *  Implementation of the cluster itself algorithm.
+     *
+     *  @param int   $iteration Maximum iteration
+     *  @param array &$data     Array of elements.
+     *
+     *  @return array
+     */
+    abstract protected function mainCluster($iteration, &$data);
 }
 
+/*
+ * Local variables:
+ * tab-width: 4
+ * c-basic-offset: 4
+ * End:
+ * vim600: sw=4 ts=4 fdm=marker
+ * vim<600: sw=4 ts=4
+ */
 ?>
