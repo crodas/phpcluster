@@ -142,7 +142,7 @@ class Kmeans extends Cluster_base
 
         for ($i=0; $i < $ncentroid; $i++) {
             do {
-                $id = rand(0, $max);
+                $id = rand(0, $max-1);
             } while (isset($temp[$id]));
             $temp [$id] = true;
             $centroid[] = $node[$id];
