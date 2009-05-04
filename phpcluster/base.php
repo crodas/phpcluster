@@ -145,8 +145,9 @@ abstract class Cluster_Base
      */
     protected function distanceInit(&$element)
     {
-        $features     = & $element->features; 
-        $element->sum = array_sum($features);
+        $features       = & $element->features; 
+        $element->sum   = array_sum($features);
+        $element->count = count($features);
 
         $seq = array_sum(array_map(array(&$this, "_pearsonpow"), $features));
 
@@ -180,7 +181,7 @@ abstract class Cluster_Base
         $v1 = & $element1->features;
         $v2 = & $element2->features;
 
-        if (count($v1) > count($v2)) {
+        if ($element1->count > $element2->count) {
             $min = & $v2;
             $max = & $v1;
         } else {
@@ -198,7 +199,6 @@ abstract class Cluster_Base
                 continue;
             }
             $pSum += $min[$id] * $max[$id]; 
-            next($min);
         }
         $num = $pSum - ($sum1 * $sum2 / $word_count);
         $den = sqrt($element1->den * $element2->den);
