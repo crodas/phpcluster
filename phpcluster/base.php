@@ -193,11 +193,12 @@ abstract class Cluster_Base
         $word_count = & $this->word_count;
 
         $pSum = 0;
-        foreach ($min as $id => $count) {
+        foreach (array_keys($min) as $id) {
             if (!isset($max[$id])) {
                 continue;
             }
-            $pSum += $count * $max[$id]; 
+            $pSum += $min[$id] * $max[$id]; 
+            next($min);
         }
         $num = $pSum - ($sum1 * $sum2 / $word_count);
         $den = sqrt($element1->den * $element2->den);

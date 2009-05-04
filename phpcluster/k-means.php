@@ -167,7 +167,7 @@ class Kmeans extends Cluster_base
                     $d = $this->distance($centroid[$e], $row);
                     if ($d < $bmatch_val) {
                         $bmatch     = $e;
-                        $bmatch_val = $this->distance($centroid[$bmatch], $row);
+                        $bmatch_val = $d;
                     }
                 }
                 /* we just want good results, that's why there */
