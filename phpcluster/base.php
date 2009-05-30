@@ -44,7 +44,7 @@ abstract class Cluster_Base
     final public function addElement($id, $raw_text)
     {
         $text = $this->filterElement($raw_text);
-        if (!is_string($text)) {
+        if (gettype($text) != gettype($raw_text)) {
             return false;
         }
         $features = $this->getFeatures($text);
@@ -148,6 +148,7 @@ abstract class Cluster_Base
         $features       = & $element->features; 
         $element->sum   = array_sum($features);
         $element->count = count($features);
+        $element->keys  = array_keys($features);
 
         $seq = array_sum(array_map(array(&$this, "_pearsonpow"), $features));
 
@@ -171,36 +172,25 @@ abstract class Cluster_Base
      */
     protected function distance(&$element1, &$element2)
     {
-        if (!$element1 instanceof stdclass) {
-            throw new exception("error");
-        }
-        if (!$element2 instanceof stdclass) {
-            throw new exception("error");
-        }
+        #if (!$element1 instanceof stdclass) {
+        #    throw new exception("error");
+        #}
+        #if (!$element2 instanceof stdclass) {
+        #    throw new exception("error");
+        #}
 
         $v1 = & $element1->features;
         $v2 = & $element2->features;
 
-        if ($element1->count > $element2->count) {
-            $min = & $v2;
-            $max = & $v1;
-        } else {
-            $min = & $v1;
-            $max = & $v2;
-        }
-
-        $sum1       = & $element1->sum;
-        $sum2       = & $element2->sum;
-        $word_count = & $this->word_count;
-
         $pSum = 0;
-        foreach (array_keys($min) as $id) {
-            if (!isset($max[$id])) {
+        foreach ($element2->keys as &$id) {
+            if (!isset($v1[$id])) {
                 continue;
             }
-            $pSum += $min[$id] * $max[$id]; 
+            $pSum += $v1[$id] * $v2[$id]; 
         }
-        $num = $pSum - ($sum1 * $sum2 / $word_count);
+
+        $num = $pSum - ($element1->sum * $element2->sum / $this->word_count);
         $den = sqrt($element1->den * $element2->den);
         if ($den == 0) {
             return 0;

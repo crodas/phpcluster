@@ -110,6 +110,55 @@ class Kmeans extends Cluster_base
     }
     // }}} 
 
+
+    final function sparseCentroid($centroids, &$centers)
+    {
+        $number = count($centroids);
+        $ncent  = floor($number / 50);
+        $cents  = array();
+
+        $tmp = array();
+        for ($i=0; $i < $ncent; $i++) {
+            do {
+                $id = rand(0, $number-1);
+            } while (isset($tmp[$id]) || is_null($centroids[$id]) );
+            $tmp[$id] = true;
+            $cents[]  = $id;
+        }
+
+        $result = array();
+        for ($i=0; $i < $number; $i++) {
+            $bmatch_val = 10;
+            $row = & $centroids[ $i ];
+            if ($row == null) {
+                continue;
+            }
+            for ($e=0; $e < $ncent; $e++) {
+                $d = $this->distance($centroids[ $cents[$e] ], $row);
+                if ($d < $bmatch_val) {
+                    $bmatch     = $e;
+                    $bmatch_val = $d;
+                }
+            }
+            $result[$bmatch][] = $i;
+        }
+
+        $centers = array();
+        for ($i=0; $i < $ncent; $i++) {
+            $center = & $centers[$i];
+            $avg    = & $center->features;
+
+            $center->members  = array();
+            foreach ($result[$i] as $id) {
+                $centroids[$id]->cid = $id; 
+                array_merge_ex($avg, $centroids[$id]->features);
+                $center->members[]  = & $centroids[$id];
+            }
+            
+            $this->distanceInit($center);
+        }
+    }
+
     //  mainCluster  {{{
     /**
      *  The K-means algorithm implementation.
@@ -136,8 +185,8 @@ class Kmeans extends Cluster_base
 
         /* initialize first centroids  {{{ */
         $temp = array();
-        if ($ncentroid > ($max/2)) {
-            $ncentroid = $max/2 -1;
+        if ($ncentroid > ($max/3)) {
+            $ncentroid = ceil($max/3) -1;
         }
 
         for ($i=0; $i < $ncentroid; $i++) {
@@ -155,18 +204,32 @@ class Kmeans extends Cluster_base
         for ($ite = 0; $ite < $iteration; $ite++) {
             $this->doLog("Iteration $ite");
             $bmatches = $this->_narray($ncentroid);
+            $centers  = array();
+            $this->sparseCentroid($centroid, $centers);
 
-            /* find a centroid for every element {{{ */
+            /* find a centroid for every element {{{*/
             for ($i=0; $i < $max; $i++) {
                 $row        = & $node[$i];
+
+                /* group centroids by similarity {{{ */
                 $bmatch_val = 2;
-                for ($e = 0; $e < $ncentroid; $e++) {
-                    if ($centroid[$e] === null) {
-                        continue;
-                    }
-                    $d = $this->distance($centroid[$e], $row);
+                for ($e = 0; $e < count($centers); $e++) {
+                    $d = $this->distance($centers[$e], $row);
                     if ($d < $bmatch_val) {
                         $bmatch     = $e;
+                        $bmatch_val = $d;
+                    }
+                }
+
+                $_center = & $centers[$bmatch]->members;
+                $_count  = count($_center);
+                /* }}} */
+
+                $bmatch_val = 2;
+                for ($e = 0; $e < $_count; $e++) {
+                    $d = $this->distance($_center[$e], $row);
+                    if ($d < $bmatch_val) {
+                        $bmatch     = $_center[$e]->cid;
                         $bmatch_val = $d;
                     }
                 }
