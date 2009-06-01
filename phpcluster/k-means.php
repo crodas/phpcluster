@@ -110,11 +110,11 @@ class Kmeans extends Cluster_base
     }
     // }}} 
 
-
-    final function sparseCentroid($centroids, &$centers)
+    /* clusterCenters {{{ */
+    final function clusterCenters($centroids, &$centers)
     {
         $number = count($centroids);
-        $ncent  = floor($number / 50);
+        $ncent  = floor($number / 20);
         $cents  = array();
 
         $tmp = array();
@@ -158,6 +158,7 @@ class Kmeans extends Cluster_base
             $this->distanceInit($center);
         }
     }
+    /* }}} */
 
     //  mainCluster  {{{
     /**
@@ -182,6 +183,9 @@ class Kmeans extends Cluster_base
         $threshold = 1 - $this->threshold;
         $ncentroid = $this->_centroid;
         $centroid  = array();
+        /* list of random nodes selected as centroids */
+        /* with no similar node */
+        $blacklist = array();
 
         /* initialize first centroids  {{{ */
         $temp = array();
@@ -205,7 +209,9 @@ class Kmeans extends Cluster_base
             $this->doLog("Iteration $ite");
             $bmatches = $this->_narray($ncentroid);
             $centers  = array();
-            $this->sparseCentroid($centroid, $centers);
+            $this->clusterCenters($centroid, $centers);
+            /* Candidates nodes for new centroids */
+            $centCand = array();
 
             /* find a centroid for every element {{{*/
             for ($i=0; $i < $max; $i++) {
@@ -238,6 +244,11 @@ class Kmeans extends Cluster_base
                 if ($bmatch_val < $threshold) {
                     $bmatches[$bmatch][] = $i;
                     $xmatches[$bmatch][] = $bmatch_val;
+                } else if ($bmatch_val < 0.9 && !isset($blacklist[$node[$i]->id])) {
+                   /* we collect very differents nodes as candidates to fit */
+                   /* empty centroids spaces                                */
+                   $centCand[] = $i; 
+
                 }
             }
             /* }}} */
@@ -248,15 +259,39 @@ class Kmeans extends Cluster_base
             $oldmatches = $bmatches;
 
             /* merge all the features per centroid {{{ */
-            $free = 0;
+            $ncCand = count($centCand); 
+            $ncands = 0;
+            $cands  = array();
+            $free   = 0;
             for ($i=0; $i < $ncentroid; $i++) {
                 $nnodes = count($bmatches[$i]);
-                if ($nnodes <= 1 || $centroid[$i] == null) {
-                    /* empty centroid or only one match*/
+                /* empty centroid or with a single similar node {{{ */
+                if ($centroid[$i] == null) {
                     $free++;
-                    $centroid[$i] = null;
                     continue;
                 }
+                if ($nnodes <= 1) {
+                    /* putting the centroid element (which in this case is the same as */
+                    /* centroid itself) in the black list                              */
+                    $blacklist[ $centroid[$i]->id ] = true;
+                    /* we have got an empty  centroids, let's try to fetch some */
+                    /* other centroid                                           */
+                    if ($ncCand > 0 && $ncCand > $ncands) {
+                        do {
+                            $rnd = rand(0, $ncCand-1);
+                        } while ( isset($cands[$rnd]) );
+                        $newcenter = $node[ $centCand[ $rnd ] ];
+                        $centroid[$i] = $newcenter;
+                        $ncands++;
+                    } else { 
+                        /* empty centroid or only one match*/
+                        $centroid[$i] = null;
+                        $free++;
+                    }
+                    continue;
+                } 
+                /* }}} */
+
                 /* merging all features in every node */
                 $wcount = array();
                 $avg    = array();
@@ -279,7 +314,7 @@ class Kmeans extends Cluster_base
             }
             /* }}} */
 
-            $this->doLog("\t$free free clusters");
+            $this->doLog("\t$free free clusters, $ncands reallocated clusters");
         }
 
         /* now from out $bmatches get the key */
