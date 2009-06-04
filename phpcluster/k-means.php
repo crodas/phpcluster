@@ -111,11 +111,28 @@ class Kmeans extends Cluster_base
     // }}} 
 
     /* clusterCenters {{{ */
+    /**
+     *  Cluster Centers
+     *  
+     *  Create a brif cluster over the centroids, it really speed up the
+     *  computation time if there's a great number of centroids.
+     *
+     *  @param array $centroids Current centroids
+     *  @param array &$centers  Output variables for centroid's cluster.
+     *
+     *  @return void
+     */
     final function clusterCenters($centroids, &$centers)
     {
-        $number = count($centroids);
-        $ncent  = floor($number / 20);
-        $cents  = array();
+        $number  = count($centroids);
+        $ncent   = 30;
+        $cents   = array();
+        $centers = array();
+
+        if ($number <= 30) {
+            die("here"); 
+            return;    
+        }
 
         $tmp = array();
         for ($i=0; $i < $ncent; $i++) {
@@ -143,16 +160,24 @@ class Kmeans extends Cluster_base
             $result[$bmatch][] = $i;
         }
 
-        $centers = array();
         for ($i=0; $i < $ncent; $i++) {
             $center = & $centers[$i];
             $avg    = & $center->features;
 
             $center->members  = array();
+            if (!isset($result[$i])) {
+                $center = null;
+                continue;
+            }
+            $nnodes = count($result[$i]);
             foreach ($result[$i] as $id) {
                 $centroids[$id]->cid = $id; 
                 array_merge_ex($avg, $centroids[$id]->features);
                 $center->members[]  = & $centroids[$id];
+            }
+
+            foreach (array_keys($avg) as $wid) {
+                $avg[$wid] = ceil($avg[$wid] / $nnodes);
             }
             
             $this->distanceInit($center);
@@ -220,6 +245,7 @@ class Kmeans extends Cluster_base
                 /* group centroids by similarity {{{ */
                 $bmatch_val = 2;
                 for ($e = 0; $e < count($centers); $e++) {
+                    if ($centers[$e]===null) continue;
                     $d = $this->distance($centers[$e], $row);
                     if ($d < $bmatch_val) {
                         $bmatch     = $e;
@@ -244,7 +270,7 @@ class Kmeans extends Cluster_base
                 if ($bmatch_val < $threshold) {
                     $bmatches[$bmatch][] = $i;
                     $xmatches[$bmatch][] = $bmatch_val;
-                } else if ($bmatch_val < 0.9 && !isset($blacklist[$node[$i]->id])) {
+                } else if ($bmatch_val < $threshold+0.1 && !isset($blacklist[$node[$i]->id])) {
                    /* we collect very differents nodes as candidates to fit */
                    /* empty centroids spaces                                */
                    $centCand[] = $i; 
@@ -303,9 +329,15 @@ class Kmeans extends Cluster_base
                 /* saving only the average */
                 foreach (array_keys($avg) as $wid) {
                     $avg[$wid] = ceil($avg[$wid] / $nnodes);
-                    if ($avg[$wid] <= 0) {
+                    if ($avg[$wid] > 2) {
+                        /* deleting those very popular items from centroids */
                         unset($avg[$wid]);
                     }
+                }
+
+                if (count($avg) == 0) {
+                    $centroid[$i] =  null;
+                    continue;
                 }
 
                 /* add the new centroid value and prepare */
