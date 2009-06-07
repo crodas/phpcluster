@@ -13,23 +13,6 @@
 
 require_once dirname(__FILE__)."/base.php";
 
-/**
- *  Array Merge 
- *
- *  @param array &$array Target array
- *  @param array $array1 Array to merge with $array
- *
- *  @return void
- */
-function Array_Merge_ex(&$array, $array1)
-{
-    foreach ($array1 as $key => $value) {
-        if (!isset($array[$key])) {
-            $array[$key] = 0;
-        }
-        $array[$key] += $value;
-    }
-}
 
 /**
  *  This class imeplements K-means clustering algorithm.
@@ -44,6 +27,7 @@ class Kmeans extends Cluster_base
 {
     private $_centroid   = 100;
     protected $threshold = 0.5;
+    protected $recentroid = 10;
 
     // {{{ setThreshold
     /**
@@ -172,7 +156,7 @@ class Kmeans extends Cluster_base
             $nnodes = count($result[$i]);
             foreach ($result[$i] as $id) {
                 $centroids[$id]->cid = $id; 
-                array_merge_ex($avg, $centroids[$id]->features);
+                $this->featuresMerge($avg, $centroids[$id]->features);
                 $center->members[]  = & $centroids[$id];
             }
 
@@ -270,7 +254,7 @@ class Kmeans extends Cluster_base
                 if ($bmatch_val < $threshold) {
                     $bmatches[$bmatch][] = $i;
                     $xmatches[$bmatch][] = $bmatch_val;
-                } else if ($bmatch_val < $threshold+0.1 && !isset($blacklist[$node[$i]->id])) {
+                } else if ($ite < $this->recentroid && !isset($blacklist[$node[$i]->id])) {
                    /* we collect very differents nodes as candidates to fit */
                    /* empty centroids spaces                                */
                    $centCand[] = $i; 
@@ -282,71 +266,10 @@ class Kmeans extends Cluster_base
             if ($bmatches === $oldmatches) {
                 break; /* we got a perfect clustering */
             }
+
+            $this->centroidsMerge($centroid, $bmatches, $node, $centCand);
+
             $oldmatches = $bmatches;
-
-            /* merge all the features per centroid {{{ */
-            $ncCand = count($centCand); 
-            $ncands = 0;
-            $cands  = array();
-            $free   = 0;
-            for ($i=0; $i < $ncentroid; $i++) {
-                $nnodes = count($bmatches[$i]);
-                /* empty centroid or with a single similar node {{{ */
-                if ($centroid[$i] == null) {
-                    $free++;
-                    continue;
-                }
-                if ($nnodes <= 1) {
-                    /* putting the centroid element (which in this case is the same as */
-                    /* centroid itself) in the black list                              */
-                    $blacklist[ $centroid[$i]->id ] = true;
-                    /* we have got an empty  centroids, let's try to fetch some */
-                    /* other centroid                                           */
-                    if ($ncCand > 0 && $ncCand > $ncands) {
-                        do {
-                            $rnd = rand(0, $ncCand-1);
-                        } while ( isset($cands[$rnd]) );
-                        $newcenter = $node[ $centCand[ $rnd ] ];
-                        $centroid[$i] = $newcenter;
-                        $ncands++;
-                    } else { 
-                        /* empty centroid or only one match*/
-                        $centroid[$i] = null;
-                        $free++;
-                    }
-                    continue;
-                } 
-                /* }}} */
-
-                /* merging all features in every node */
-                $wcount = array();
-                $avg    = array();
-                for ($e=0; $e < $nnodes; $e++) {
-                    $nid = $bmatches[$i][$e];
-                    array_merge_ex($avg, $node[$nid]->features);
-                }
-
-                /* saving only the average */
-                foreach (array_keys($avg) as $wid) {
-                    $avg[$wid] = ceil($avg[$wid] / $nnodes);
-                    if ($avg[$wid] > 2) {
-                        /* deleting those very popular items from centroids */
-                        unset($avg[$wid]);
-                    }
-                }
-
-                if (count($avg) == 0) {
-                    $centroid[$i] =  null;
-                    continue;
-                }
-
-                /* add the new centroid value and prepare */
-                $centroid[$i]->features = $avg;
-                $this->distanceInit($centroid[$i]);
-            }
-            /* }}} */
-
-            $this->doLog("\t$free free clusters, $ncands reallocated clusters");
         }
 
         /* now from out $bmatches get the key */
@@ -373,6 +296,87 @@ class Kmeans extends Cluster_base
         return $clusters;
     }
     // }}}
+
+    /* {{{ features Merge {{{ */
+    protected function featuresMerge(&$array, &$array1)
+    {
+        foreach ($array1 as $key => $value) {
+            if (!isset($array[$key])) {
+                $array[$key] = 0;
+            }
+            $array[$key] += $value;
+        }
+    }
+    /* }}} */
+
+    /* merge all the features per centroid {{{ */
+    protected function centroidsMerge(&$centroid, &$bmatches, &$node, &$centCand) {
+        $ncCand = count($centCand); 
+        $ncands = 0;
+        $cands  = array();
+        $free   = 0;
+
+        $ncentroid = count($centroid);
+
+        for ($i=0; $i < $ncentroid; $i++) {
+            $nnodes = count($bmatches[$i]);
+            /* empty centroid or with a single similar node {{{ */
+            if ($nnodes <= 1) {
+                /*
+                ** putting the centroid element (which in this case is the same as 
+                ** centroid itself) in the black list  
+                */
+                if ($centroid[$i] !== null) {
+                    $blacklist[ $centroid[$i]->id ] = true;
+                }
+                /* we have got an empty  centroids, let's try to fetch some */
+                /* other centroid                                           */
+                if ($ncCand > 0 && $ncCand > $ncands) {
+                    do {
+                        $rnd = rand(0, $ncCand-1);
+                    } while ( isset($cands[$rnd]) );
+                    $newcenter = $node[ $centCand[ $rnd ] ];
+                    $centroid[$i] = $newcenter;
+                    $ncands++;
+                } else { 
+                    /* empty centroid or only one match*/
+                    $centroid[$i] = null;
+                    $free++;
+                }
+                continue;
+            } 
+            /* }}} */
+
+            /* merging all features in every node */
+            $wcount = array();
+            $avg    = array();
+            for ($e=0; $e < $nnodes; $e++) {
+                $nid = $bmatches[$i][$e];
+                $this->featuresMerge($avg, $node[$nid]->features);
+            }
+
+            /* saving only the average */
+            foreach (array_keys($avg) as $wid) {
+                $avg[$wid] = ceil($avg[$wid] / $nnodes);
+                if ($avg[$wid] > 2) {
+                    /* deleting those very popular items from centroids */
+                    unset($avg[$wid]);
+                }
+            }
+
+            if (count($avg) == 0) {
+                $centroid[$i] =  null;
+                continue;
+            }
+
+            /* add the new centroid value and prepare */
+            $centroid[$i]->features = $avg;
+            $this->distanceInit($centroid[$i]);
+        }
+        $this->doLog("\t$ncands New centroids.");
+        $this->doLog("\t$free free clusters.");
+    }
+    /* }}} */
 
 }
 

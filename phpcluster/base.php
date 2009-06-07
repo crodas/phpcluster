@@ -145,10 +145,6 @@ abstract class Cluster_Base
      */
     protected function distanceInit(&$element)
     {
-        if (!is_array($element->features)) {
-            var_dump($element);
-            die();
-        }
         $features       = & $element->features; 
         $element->sum   = array_sum($features);
         $element->count = count($features);
