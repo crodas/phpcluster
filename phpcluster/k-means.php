@@ -169,7 +169,7 @@ class Kmeans extends Cluster_base
     }
     /* }}} */
 
-    //  mainCluster  {{{
+    //  mainCluster  {{{ 
     /**
      *  The K-means algorithm implementation.
      *
@@ -297,7 +297,18 @@ class Kmeans extends Cluster_base
     }
     // }}}
 
-    /* {{{ features Merge {{{ */
+    /* features Merge {{{ */
+    /**
+     *  Features Merge
+     *
+     *  This function merges all the features and returns the features
+     *  for the centroid.
+     *
+     *  @param array &$array  Target array.
+     *  @param array &$array1 Features.
+     *
+     *  @return void
+     */
     protected function featuresMerge(&$array, &$array1)
     {
         foreach ($array1 as $key => $value) {
@@ -309,7 +320,21 @@ class Kmeans extends Cluster_base
     }
     /* }}} */
 
-    /* merge all the features per centroid {{{ */
+    // merge all the features per centroid {{{ 
+    /**
+     *  Centroids Merge
+     *
+     *  This function creates new centroids based on all items. Basically it mergers
+     *  all entrie's features, and also deletes empty centroids and reasign new centroids
+     *  if it possible (in order to get better results).
+     *
+     *  @param array $&centroid Centroids.
+     *  @param array $&bmatches Array with all items and centroid.
+     *  @param array &$node     All items
+     *  @param array &$centCand Array with all items that qualifies as possible centroids.
+     *
+     *  @return void
+     */
     protected function centroidsMerge(&$centroid, &$bmatches, &$node, &$centCand) {
         $ncCand = count($centCand); 
         $ncands = 0;
@@ -320,6 +345,7 @@ class Kmeans extends Cluster_base
 
         for ($i=0; $i < $ncentroid; $i++) {
             $nnodes = count($bmatches[$i]);
+
             /* empty centroid or with a single similar node {{{ */
             if ($nnodes <= 1) {
                 /*
@@ -376,7 +402,7 @@ class Kmeans extends Cluster_base
         $this->doLog("\t$ncands New centroids.");
         $this->doLog("\t$free free clusters.");
     }
-    /* }}} */
+    // }}}
 
 }
 
@@ -389,3 +415,4 @@ class Kmeans extends Cluster_base
  * vim<600: sw=4 ts=4
  */
 ?>
+
