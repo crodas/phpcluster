@@ -277,12 +277,8 @@ class Kmeans extends Cluster_base
             }
             /* }}} */
 
-            var_dump($bmatches == $oldmatches, $bmatches === $oldmatches, $this->iterationDiff($oldmatches, $bmatches));
             if ($this->iterationDiff($oldmatches, $bmatches) > 99) {
                 break;
-            }
-            if ($bmatches === $oldmatches) {
-                break; /* we got a perfect clustering */
             }
             $this->centroidsMerge($centroid, $bmatches, $node, $centCand);
             $oldmatches = $bmatches;
