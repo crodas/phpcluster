@@ -28,8 +28,8 @@ abstract class Cluster_Base
     protected $data           = array();
     protected $text           = array();
     protected $index          = array();
-    protected $word_count     = 0;
-    private $_wordcount       = array();
+    protected $feature_count     = 0;
+    private $_featurecount       = array();
     private $_maxfeaturesfreq = 100;
 
     // addElement {{{
@@ -54,8 +54,8 @@ abstract class Cluster_Base
 
             $data   = & $this->data[$id];
             $index  = & $this->index;
-            $wcount = & $this->_wordcount; 
-            $isize  = & $this->word_count;
+            $wcount = & $this->_featurecount; 
+            $isize  = & $this->feature_count;
             foreach ($features as $feature => $count) {
                 if (!isset($index[$feature])) {
                     $index[$feature]  = $isize++;
@@ -103,16 +103,16 @@ abstract class Cluster_Base
      */
     protected function getFeatures($text)
     {
-        $words = array();
-        foreach (preg_split("/[^a-zραινσϊνσϊό']/i", $text) as $word) {
-            if (strlen($word) > 2) {
-                if (!isset($words[$word])) {
-                    $words[$word] = 0;
+        $features = array();
+        foreach (preg_split("/[^a-zραινσϊνσϊό']/i", $text) as $feature) {
+            if (strlen($feature) > 2) {
+                if (!isset($features[$feature])) {
+                    $features[$feature] = 0;
                 }
-                $words[$word]++;
+                $features[$feature]++;
             }
         }
-        return $words;
+        return $features;
     }
     // }}}
 
@@ -152,7 +152,7 @@ abstract class Cluster_Base
 
         $seq = array_sum(array_map(array(&$this, "_pearsonpow"), $features));
 
-        $element->den = $seq - pow($element->sum, 2) / $this->word_count; 
+        $element->den = $seq - pow($element->sum, 2) / $this->feature_count; 
     }
     // }}}
 
@@ -172,13 +172,6 @@ abstract class Cluster_Base
      */
     protected function distance(&$element1, &$element2)
     {
-        #if (!$element1 instanceof stdclass) {
-        #    throw new exception("error");
-        #}
-        #if (!$element2 instanceof stdclass) {
-        #    throw new exception("error");
-        #}
-
         $v1 = & $element1->features;
         $v2 = & $element2->features;
 
@@ -190,7 +183,7 @@ abstract class Cluster_Base
             $pSum += $v1[$id] * $v2[$id]; 
         }
 
-        $num = $pSum - ($element1->sum * $element2->sum / $this->word_count);
+        $num = $pSum - ($element1->sum * $element2->sum / $this->feature_count);
         $den = sqrt($element1->den * $element2->den);
         if ($den == 0) {
             return 0;
@@ -239,29 +232,29 @@ abstract class Cluster_Base
         $raw_data = & $this->data;
 
         if ($this->_maxfeaturesfreq != 100) {
-            $wcount = & $this->_wordcount;
+            $wcount = & $this->_featurecount;
             $index  = & $this->index;
             $lndata = count($raw_data);
             $thold  = $this->_maxfeaturesfreq * $lndata;
             $todel  = array();
             arsort($wcount);
 
-            foreach ($wcount as $word => $count) {
+            foreach ($wcount as $feature => $count) {
                 if ($count < $thold) {
                     break;
                 }
-                $todel[] = $word;
-                $this->doLog("Deleting common word $word");
+                $todel[] = $feature;
+                $this->doLog("Deleting common feature $feature");
             }
 
-            foreach ($todel as $word) {
-                $id = $index[$word];
+            foreach ($todel as $feature) {
+                $id = $index[$feature];
                 foreach (array_keys($raw_data) as $lid) {
                     if (isset($raw_data[$lid][$id])) {
                         unset($raw_data[$lid][$id]);
                     }
                 }
-                unset($index[$word]);
+                unset($index[$feature]);
             }
         }
 
@@ -269,9 +262,6 @@ abstract class Cluster_Base
             $anode           = new stdClass;
             $anode->id       = $id;
             $anode->features = & $raw_data[$id];
-            $anode->left     = 0;
-            $anode->right    = 0;
-            $anode->distance = 0;
             $this->distanceInit($anode);
             $nodes[] = $anode;
         }

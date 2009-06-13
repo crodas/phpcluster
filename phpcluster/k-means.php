@@ -25,9 +25,10 @@ require_once dirname(__FILE__)."/base.php";
  */
 class Kmeans extends Cluster_base
 {
-    private $_centroid   = 100;
-    protected $threshold = 0.5;
+    private $_centroid    = 100;
+    protected $threshold  = 0.5;
     protected $recentroid = 10;
+    protected $centcent   = 0.05;
 
     // {{{ setThreshold
     /**
@@ -97,7 +98,7 @@ class Kmeans extends Cluster_base
     /* clusterCenters {{{ */
     /**
      *  Cluster Centers
-     *  
+     * /* 
      *  Create a brif cluster over the centroids, it really speed up the
      *  computation time if there's a great number of centroids.
      *
@@ -109,7 +110,7 @@ class Kmeans extends Cluster_base
     final function clusterCenters($centroids, &$centers)
     {
         $number  = count($centroids);
-        $ncent   = 30;
+        $ncent   = ceil($this->centcent * $number);
         $cents   = array();
         $centers = array();
 
@@ -124,7 +125,7 @@ class Kmeans extends Cluster_base
                 $id = rand(0, $number-1);
             } while (isset($tmp[$id]) || is_null($centroids[$id]) );
             $tmp[$id] = true;
-            $cents[]  = $id;
+            $cents[]  = $centroids[ $id ];
         }
 
         $result = array();
@@ -135,7 +136,7 @@ class Kmeans extends Cluster_base
                 continue;
             }
             for ($e=0; $e < $ncent; $e++) {
-                $d = $this->distance($centroids[ $cents[$e] ], $row);
+                $d = $this->distance( $cents[$e], $row);
                 if ($d < $bmatch_val) {
                     $bmatch     = $e;
                     $bmatch_val = $d;
@@ -143,6 +144,7 @@ class Kmeans extends Cluster_base
             }
             $result[$bmatch][] = $i;
         }
+        unset($cents);
 
         for ($i=0; $i < $ncent; $i++) {
             $center = & $centers[$i];
@@ -162,10 +164,15 @@ class Kmeans extends Cluster_base
 
             foreach (array_keys($avg) as $wid) {
                 $avg[$wid] = ceil($avg[$wid] / $nnodes);
+                if ($avg[$wid] > 2) {
+                    /* deleting those very popular items from centroids */
+                    unset($avg[$wid]);
+                }
             }
             
             $this->distanceInit($center);
         }
+        
     }
     /* }}} */
 
@@ -224,24 +231,29 @@ class Kmeans extends Cluster_base
 
             /* find a centroid for every element {{{*/
             for ($i=0; $i < $max; $i++) {
-                $row        = & $node[$i];
+                $row = & $node[$i];
 
                 /* group centroids by similarity {{{ */
-                $bmatch_val = 2;
+                $bmatch_val = 10;
                 for ($e = 0; $e < count($centers); $e++) {
                     if ($centers[$e]===null) continue;
                     $d = $this->distance($centers[$e], $row);
                     if ($d < $bmatch_val) {
-                        $bmatch     = $e;
+                        $pzCent     = $e;
                         $bmatch_val = $d;
                     }
                 }
 
-                $_center = & $centers[$bmatch]->members;
-                $_count  = count($_center);
+                $bmatch_val = 10;
+                //krsort($pzCent);
                 /* }}} */
+                //print_r(array($pzCent, array_slice($pzCent, 0, 2, true)));
 
-                $bmatch_val = 2;
+                //foreach(array_slice($pzCent, 0, 1, true) as $key => $score) {
+
+                $_center = & $centers[$pzCent]->members;
+                $_count  = count($_center);
+
                 for ($e = 0; $e < $_count; $e++) {
                     $d = $this->distance($_center[$e], $row);
                     if ($d < $bmatch_val) {
@@ -249,6 +261,9 @@ class Kmeans extends Cluster_base
                         $bmatch_val = $d;
                     }
                 }
+                
+                //}
+
                 /* we just want good results, that's why there */
                 /* is a threshold                              */
                 if ($bmatch_val < $threshold) {
@@ -258,17 +273,18 @@ class Kmeans extends Cluster_base
                    /* we collect very differents nodes as candidates to fit */
                    /* empty centroids spaces                                */
                    $centCand[] = $i; 
-
                 }
             }
             /* }}} */
 
+            var_dump($bmatches == $oldmatches, $bmatches === $oldmatches, $this->iterationDiff($oldmatches, $bmatches));
+            if ($this->iterationDiff($oldmatches, $bmatches) > 99) {
+                break;
+            }
             if ($bmatches === $oldmatches) {
                 break; /* we got a perfect clustering */
             }
-
             $this->centroidsMerge($centroid, $bmatches, $node, $centCand);
-
             $oldmatches = $bmatches;
         }
 
@@ -404,6 +420,24 @@ class Kmeans extends Cluster_base
     }
     // }}}
 
+    protected function iterationDiff($result1, $result2)
+    {
+        $total = count($result2);
+        $eq    = 0;
+        foreach ($result1 as $key => $value) {
+            if (count($value) < 2) {
+                $value = null;
+            }
+            if (count($result2[$key]) < 2) {
+                $result2[$key] = null;
+            }
+            if ($result2[$key] == $value) {
+                $eq++;
+            }
+        }
+        return $eq/$total * 100;
+    }
+
 }
 
 /*
@@ -415,4 +449,3 @@ class Kmeans extends Cluster_base
  * vim<600: sw=4 ts=4
  */
 ?>
-
