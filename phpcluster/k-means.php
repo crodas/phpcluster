@@ -27,7 +27,7 @@ class Kmeans extends Cluster_base
 {
     private $_centroid    = 100;
     protected $threshold  = 0.5;
-    protected $recentroid = 10;
+    protected $recentroid = 3;
     protected $centcent   = 0.05;
 
     // {{{ setThreshold
@@ -76,6 +76,29 @@ class Kmeans extends Cluster_base
         return true;
     }
     // }}} 
+
+    // setReCentroidNumber {{{
+    /**
+     *  Re-centroid
+     *
+     *  The re-centroid is an operation introduced in commit 
+     *  e0fb305d0404231b07e005460828ffb76b87f7b5 that basically 
+     *  improves the result by replacing those empty centroids by 
+     *  some documents with no-centroids (due our threshold).
+     *
+     *  This function sets the maximum iteration to perform this 
+     *  operation. A high number slow down the computation time but
+     *  improves the result.
+     * 
+     *  @param int $int Maximum number of iterations to perform this task.
+     *
+     *  @return void
+     */
+    final function setReCentroidNumber($int) {
+        $this->centcent = $int / 100;
+    }
+    // }}}
+
 
     // {{{ _narray
     /**
@@ -416,6 +439,18 @@ class Kmeans extends Cluster_base
     }
     // }}}
 
+    // iterationDiff {{{
+    /**
+     *  Iteration Diff.
+     *
+     *  Performs an iteration result's diff and return
+     *  it similarity. 
+     *
+     *  @param array $result1 Iteration result
+     *  @param array $result2 Iteration result
+     *
+     *  @return float Similarity (0..100)
+     */
     protected function iterationDiff($result1, $result2)
     {
         $total = count($result2);
@@ -433,6 +468,7 @@ class Kmeans extends Cluster_base
         }
         return $eq/$total * 100;
     }
+    // }}}
 
 }
 
