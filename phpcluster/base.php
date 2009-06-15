@@ -231,6 +231,10 @@ abstract class Cluster_Base
         $nodes    = array();
         $raw_data = & $this->data;
 
+        if (!isset($GLOBALS['argv']) || isset($_SERVER['REQUEST_METHOD'])  || isset($_SERVER['REMOTE_ADDR'])) {
+            throw new Exception('PHPCluster only can run from cli.');
+        }
+
         if ($this->_maxfeaturesfreq != 100) {
             $wcount = & $this->_featurecount;
             $index  = & $this->index;
