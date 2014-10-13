@@ -7,5 +7,10 @@
             "email": "crodas@php.net"
         }
     ],
+    "autoload": {
+        "classmap": [
+            "phpcluster"
+        ]
+    },
     "require": {}
 }
