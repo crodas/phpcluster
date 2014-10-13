@@ -1,0 +1,11 @@
+{
+    "name": "crodas/phpcluster",
+    "description": "Some Unsupervised learning algorithm in PHP",
+    "authors": [
+        {
+            "name": "César D. Rodas",
+            "email": "crodas@php.net"
+        }
+    ],
+    "require": {}
+}
